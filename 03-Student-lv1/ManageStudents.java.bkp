@@ -1,0 +1,340 @@
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Dictionary;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.UUID;
+
+/*
+ * ManageStudents:
+ *	view(), add(), rm(), exit()
+ *
+ * Student:
+ *	String name, Int age, Int grade, String ID (unique randomly generate)
+ *
+ * the user is prompt to give an action to the program, the user must write the full action (e.g. view) and press Enter
+ * the program depending on the action will output the desired info or ask to give a more specific action (e.g. in case the 'update' action is given)
+ * the program will loop endlessly until the user writes "exit"
+ */
+public class ManageStudents {
+	static Scanner s = new Scanner(System.in);
+
+	// variables used accross the different functions
+	static String action = ""; 
+
+	// list of students
+	private static List<Student> ss = new ArrayList<Student>();
+	private static int ss_number_tot = 0;
+
+	/*
+	 * call a_read
+	 * and call different functions based on action
+	 */
+	public static void main(String[] args) {
+		// needed to access non static methods
+		ManageStudents ms = new ManageStudents();
+
+mainLoop:
+		while(true) {
+			// get the action
+			action = ms.getValidAction("mainAction");
+
+			// depending on the action call desired methods
+			switch (action) {
+				case "view":
+					ms.s_view();
+					break;
+				case "add":
+					ms.s_add();
+					break;
+				case "delete":
+					ms.s_rm();
+					break;
+				case "update":
+					ms.s_update();
+					break;
+				case "exit":
+					break mainLoop;
+				default:
+					print_err("Something is not right, please try again");
+					break;
+			}
+		}
+		System.out.println("Goodbye and have a good day!");
+	}
+
+	/*
+	 * loop through all the students and print their info
+	 */
+	private void s_view() {
+		try {
+			if(ss_number_tot <= 0) {
+				// if there are no students print an error message
+				print_err("No students yet, please add them");
+			} else {
+				// if there are call the printInfo() method of the Student class
+				for (int i=0; i < ss_number_tot; i++) {
+					ss.get(i).printInfo();
+				}
+				print_success("Done");
+			}
+		} catch (Exception e) {
+			print_err("Please show the following error to the IT technician");
+			System.out.println(e);
+		}
+	}
+
+	/*
+	 * ask student info
+	 * add new student to array & update students_number_total
+	 */
+	private void s_add() {
+		String s_name;
+		int s_age;
+		int s_grade;
+
+		// get the student info
+		System.out.print("\nPlease insert the Name and Surname of the student: ");
+		s_name = s.nextLine();
+		System.out.print("Please insert the age of the student: ");
+		s_age = getValidInt();
+		System.out.print("Please insert the grade of the student: ");
+		s_grade = getValidInt();
+
+
+		try {
+			// create a new student, add to the DB and update the students_number_total
+			Student s = new Student(s_name, s_age, s_grade);
+			ss.add(s);
+			ss_number_tot = ss.size();
+			print_success("New student added");
+		} catch (Exception e) {
+			print_err("Please show the following error to the IT technician");
+			System.out.println(e);
+		}
+	}
+
+	/*
+	 * ask for student ID (not as a loop, because if there isn't any student ID then user cannot exit)
+	 * rm student from array
+	 * update students_number_tot
+	 */
+	private void s_rm() {
+		int ss_key = -1;
+
+		// get the key of the student to delete
+		ss_key = getKeyFromID();
+		if (ss_key == -1) {
+			// if key not valid exit, error message already printed by getKeyFromID()
+			return;	
+		} else {
+			// if key is valid, remove student & update students_number_tot
+			ss.remove(ss_key);
+			ss_number_tot = ss.size();
+			print_success("Successffuly removed student");
+		}
+	}
+
+	/*
+	 * get the student ID, and info to change
+	 * update the desired fields
+	 */
+	private void s_update() {
+		// get the student ID
+		int ss_key = getKeyFromID();
+		if (ss_key == -1) {
+			return;
+		}
+
+		String s_name;
+		int s_age;
+		int s_grade;
+
+		// get new info for the student
+		System.out.print("\nPlease insert the Name and Surname of the student: ");
+		s_name = s.nextLine();
+		System.out.print("Please insert the age of the student: ");
+		s_age = getValidInt();
+		System.out.print("Please insert the grade of the student: ");
+		s_grade = getValidInt();
+
+
+		try {
+			// update student with new info
+			ss.get(ss_key).name = s_name;
+			ss.get(ss_key).age = s_age;
+			ss.get(ss_key).grade = s_grade;
+			print_success("Student updated!");
+		} catch (Exception e) {
+			print_err("Please show the following error to the IT technician");
+			System.out.println(e);
+		}
+	}
+
+
+	/*
+	 * create Map of valid actions, based on mainAction or studentAction
+	 *	(studentAction is a possible improvement of s_update(), 
+	 *	since there are only few parameters it is faster to not use it, but in the future it can be easily implemented)
+	 * ask for action
+	 * return validated action as a String
+	 */
+	private String getValidAction(String a_type) {
+		Map<String, String> actions = new HashMap<String, String>();
+
+		switch (a_type) {
+			case "mainAction":
+				actions.put("view", "view all the students details");
+				actions.put("add", "Add a student");
+				actions.put("update", "update the student details");
+				actions.put("delete", "Delete a student");
+				actions.put("exit", "exit");
+				break;
+			case "studentAction":
+				actions.put("name", "Change student name");
+				actions.put("age", "Change student age");
+				actions.put("grade", "Change student grade");
+				actions.put("exit", "exit");
+				break;
+			default:
+				break;
+		}
+
+		// tmp values 
+		boolean action_is_accepted = false;
+		String action_tmp = "";
+
+		do {
+			// program will print the possible actions
+			System.out.println("\nWrite what you want this program to do: ");
+			for (Map.Entry<String, String> action : actions.entrySet()) {
+				String key = action.getKey();
+				String val = action.getValue();
+				System.out.println(" - "+key+": "+val);
+			}
+
+			// read the user input and check is valid
+			action_tmp = s.nextLine();
+			for (Map.Entry<String, String> action : actions.entrySet()) {
+				String key = action.getKey();
+				if(action_tmp.equals(key)) {
+					action_is_accepted = true;
+					break;
+				}
+				
+			}
+
+			// if it is not valid informs the user and repeat the loop.
+			if(!action_is_accepted) print_err("Your input is not valid!"); 
+		} while(!action_is_accepted);
+
+		// if program arrives here the action is valid so we can save it
+		return action_tmp;
+	}
+
+	/*
+	 * ask for an integer (loop until integer is positive)
+	 * return the valid int
+	 */
+	private Integer getValidInt() {
+		Integer tmpInt = -1;
+
+		// loop until quantity is a valid positive number
+		while(true) {
+			// making sure it is an integer
+			try {
+				tmpInt = s.nextInt();
+				// making sure it is positive
+				if (tmpInt < 1) {
+					print_err("Please insert a valid number: ");
+				} else {
+					s.nextLine(); // consume newline character
+					return tmpInt;
+				}
+			} catch (Exception e) {
+				print_err("Please insert an integer number: ");
+				s.nextLine(); // consume newline character
+			}
+		}
+	}
+
+	/*
+	 * ask the user ONCE the ID
+	 * if ID in array, return ID, else return "" and print error
+	 */
+	private int getKeyFromID() {
+		// get the ID
+		System.out.print("\nPlease insert the ID of the student: ");
+		String s_id_tmp = s.nextLine();
+
+		// check the ID through the students in the DB
+		for ( int i = 0; i < ss_number_tot; i++) {
+			if(ss.get(i).ID.equals(s_id_tmp)) {
+				// if ID match return the key of the user
+				return i;
+			}
+		}
+
+		// if for loop ended without finding ID...
+		print_err("Student with ID="+s_id_tmp+" not found");
+		return -1;
+	}
+
+	/*
+	 * simple function that prints to console in green
+	 */
+	private static void print_success(String s) {
+		final String ANSI_RESET = "\u001B[0m";
+		final String ANSI_GREEN = "\u001B[32m";
+		System.out.println(ANSI_GREEN + s + ANSI_RESET);
+	}
+
+	/*
+	 * simple function that prints to console in red
+	 */
+	private static void print_err(String s) {
+		final String ANSI_RESET = "\u001B[0m";
+		final String ANSI_RED = "\u001B[31m";
+		System.out.println(ANSI_RED + s + ANSI_RESET);
+	}
+
+
+
+
+	/*
+	 * constructor Student(name, age, grade)
+	 *	create Student instance with custom info and unique ID
+	 *
+	 * printInfo()
+	 *	print the user info to console
+	 */
+	private class Student {
+		private String name;
+		private String ID;
+		private Integer age;
+		private Integer grade;
+	
+		/*
+		 * create the Student with custom info and unique ID
+		 */
+		public Student(String name, Integer age, Integer grade) {
+			this.ID = UUID.randomUUID().toString();
+			this.name = name;
+			this.age= age;
+			this.grade = grade;
+		}
+	
+		/*
+		 * print the user info to console
+		 */
+		public void printInfo() {
+			System.out.println("ID: "+this.ID+" name: "+this.name+" age: "+this.age+" grade: "+this.grade);
+		}
+	}
+	
+}
